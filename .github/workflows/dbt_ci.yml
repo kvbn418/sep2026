@@ -1,0 +1,86 @@
+name: dbt CI — Slim Build and Test
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'models/**'
+      - 'macros/**'
+      - 'tests/**'
+      - 'seeds/**'
+      - 'snapshots/**'
+      - 'dbt_project.yml'
+      - 'packages.yml'
+
+jobs:
+  dbt-ci:
+    name: CI — PR #${{ github.event.pull_request.number }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt-snowflake
+        run: |
+          pip install dbt-snowflake==1.9.0
+          dbt --version
+
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          my_new_project:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: DBT_DEV_ROLE
+                warehouse: DBT_DEV_WH
+                database: DEV_DB
+                schema: CI_PR_${{ github.event.pull_request.number }}
+                threads: 4
+          EOF
+
+      - name: dbt deps
+        run: dbt deps
+
+      - name: Get production manifest
+        run: |
+          mkdir -p ./prod_manifest
+          if [ -f "./prod_manifest/manifest.json" ]; then
+            echo "Production manifest found"
+          else
+            echo "No manifest yet — running full build"
+            python3 -c "
+          import json
+          with open('./prod_manifest/manifest.json', 'w') as f:
+              json.dump({'metadata':{},'nodes':{},'sources':{},'exposures':{},'metrics':{},'selectors':{},'disabled':{},'parent_map':{},'child_map':{}}, f)
+          "
+          fi
+
+      - name: dbt build — slim CI
+        run: |
+          dbt build \
+            --select state:modified+ \
+            --defer \
+            --state ./prod_manifest \
+            --target ci
+
+      - name: Drop CI schema — cleanup
+        if: always()
+        run: |
+          dbt run-operation drop_schema \
+            --args "{'database': 'DEV_DB', 'schema': 'CI_PR_${{ github.event.pull_request.number }}'}" \
+            || echo "Schema cleanup skipped"

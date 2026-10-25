@@ -1,0 +1,34 @@
+version: 2
+
+exposures:
+
+  - name: revenue_dashboard
+    type: dashboard                    # dashboard, ml, notebook, analysis, application
+    maturity: high                     # low, medium, high
+    url: https://tableau.company.com/revenue
+    description: >
+      Executive revenue dashboard showing daily orders,
+      revenue by segment, and customer lifetime value.
+      Refreshes daily at 07:00 UTC.
+
+    depends_on:
+      - ref('fct_orders')
+      - ref('dim_customers')
+
+    owner:
+      name: Data Engineering Team
+      email: data-eng@company.com
+
+  - name: customer_ltv_model
+    type: ml
+    maturity: medium
+    description: >
+      Machine learning model predicting customer lifetime value.
+      Trained weekly on Gold layer customer features.
+
+    depends_on:
+      - ref('dim_customers')
+
+    owner:
+      name: Data Science Team
+      email: data-science@company.com
