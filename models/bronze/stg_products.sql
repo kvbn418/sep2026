@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════════════
--- stg_products.sql
+-- stg_products.sql1
 -- Bronze staging model for products
 -- Materialization: VIEW
 -- Grain: one row per product_id
