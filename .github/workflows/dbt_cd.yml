@@ -1,0 +1,86 @@
+name: dbt CD — Production Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'models/**'
+      - 'macros/**'
+      - 'tests/**'
+      - 'seeds/**'
+      - 'snapshots/**'
+      - 'dbt_project.yml'
+      - 'packages.yml'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual production deploy'
+
+jobs:
+  dbt-cd:
+    name: CD — Deploy to Production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt-snowflake
+        run: |
+          pip install dbt-snowflake==1.9.0
+          dbt --version
+
+      - name: Write production profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          my_new_project:
+            target: prod
+            outputs:
+              prod:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: DBT_PROD_ROLE
+                warehouse: DBT_PROD_WH
+                database: PROD_DB
+                schema: GOLD
+                threads: 8
+          EOF
+
+      - name: dbt deps
+        run: dbt deps
+
+      - name: dbt build — full production
+        run: dbt build --target prod
+
+      - name: Save manifest to repo
+        if: success()
+        run: |
+          mkdir -p prod_manifest
+          cp target/manifest.json prod_manifest/manifest.json
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add prod_manifest/manifest.json
+          git diff --staged --quiet || \
+            git commit -m "chore: update prod manifest [skip ci]"
+          git push
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "PRODUCTION DEPLOY FAILED — check logs immediately"
+          exit 1

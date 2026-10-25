@@ -1,0 +1,180 @@
+# ══════════════════════════════════════════════════════════════════════
+# bronze/schema.yml
+# Tests for all four Bronze staging models
+# Bronze models are VIEWs — tests run against the underlying RAW_DB data
+# dbt 1.8+ syntax: accepted_values and relationships require arguments: key
+# ══════════════════════════════════════════════════════════════════════
+
+version: 2
+
+models:
+
+  # ── stg_customers ───────────────────────────────────────────────────
+  - name: stg_customers
+    description: >
+      Staging model for customers. Renames columns with cust_ prefix,
+      trims whitespace, lowercases email, casts date types.
+      One row per customer_id. Grain: customer_id.
+    columns:
+
+      - name: customer_id
+        description: 'Primary key. Source: RAW_DB.ECOMMERCE_RAW.CUSTOMERS.customer_id'
+        tests:
+          - unique        # every customer_id must be distinct
+          - not_null      # no orphaned rows without a key
+
+      - name: cust_email
+        description: 'Customer email — lowercased and trimmed in Bronze'
+        tests:
+          - unique        # email is a natural key — must be unique
+          - not_null
+
+      - name: cust_first_name
+        description: 'Customer first name — trimmed'
+        tests:
+          - not_null
+
+      - name: cust_last_name
+        description: 'Customer last name — trimmed'
+        tests:
+          - not_null
+
+      - name: cust_country
+        description: 'Customer country — trimmed'
+        tests:
+          - not_null
+
+      - name: cust_created_date
+        description: 'Date customer account was created — cast from TIMESTAMP to DATE'
+        tests:
+          - not_null
+
+  # ── stg_products ────────────────────────────────────────────────────
+  - name: stg_products
+    description: >
+      Staging model for products. Renames columns with prod_ prefix,
+      calculates gross margin. One row per product_id. Grain: product_id.
+    columns:
+
+      - name: product_id
+        description: 'Primary key. Source: RAW_DB.ECOMMERCE_RAW.PRODUCTS.product_id'
+        tests:
+          - unique
+          - not_null
+
+      - name: prod_product_name
+        description: 'Product display name — trimmed'
+        tests:
+          - not_null
+
+      - name: prod_category
+        description: 'Product category — must be in the approved list'
+        tests:
+          - not_null
+          - accepted_values:         # dbt 1.8+ syntax: values under arguments:
+              arguments:
+                values: ['Electronics','Footwear','Kitchen','Fitness','Accessories','Nutrition']
+
+      - name: prod_unit_price_usd
+        description: 'Selling price in USD'
+        tests:
+          - not_null
+
+      - name: prod_is_active
+        description: 'FALSE = product discontinued, should not appear in new orders'
+        tests:
+          - not_null
+
+  # ── stg_orders ──────────────────────────────────────────────────────
+  - name: stg_orders
+    description: >
+      Staging model for orders. Renames columns with ord_ prefix,
+      uppercases status, calculates days_to_ship and days_to_deliver.
+      One row per order_id. Grain: order_id.
+    columns:
+
+      - name: order_id
+        description: 'Primary key. Source: RAW_DB.ECOMMERCE_RAW.ORDERS.order_id'
+        tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: 'Foreign key to stg_customers.customer_id'
+        tests:
+          - not_null
+          - relationships:           # dbt 1.8+ syntax: to and field under arguments:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+
+      - name: order_date
+        description: 'Date the order was placed'
+        tests:
+          - not_null
+
+      - name: ord_status
+        description: >
+          Current order status — uppercased in Bronze.
+          Lifecycle: PENDING → PROCESSING → SHIPPED → DELIVERED.
+          CANCELLED is a terminal state — no further transitions.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PENDING','PROCESSING','SHIPPED','DELIVERED','CANCELLED']
+
+      - name: ord_payment_method
+        description: 'Payment method — lowercased in Bronze'
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['credit_card','paypal','bank_transfer']
+
+      - name: ord_total_amount_usd
+        description: 'Total order value including shipping minus discounts'
+        tests:
+          - not_null
+
+  # ── stg_order_items ─────────────────────────────────────────────────
+  - name: stg_order_items
+    description: >
+      Staging model for order line items. Renames columns with item_ prefix.
+      One row per order_item_id. Grain: order_item_id.
+      Multiple rows per order_id — aggregate in Gold.
+    columns:
+
+      - name: order_item_id
+        description: 'Primary key. Source: RAW_DB.ECOMMERCE_RAW.ORDER_ITEMS.order_item_id'
+        tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: 'Foreign key to stg_orders.order_id'
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+
+      - name: product_id
+        description: 'Foreign key to stg_products.product_id'
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+
+      - name: item_quantity
+        description: 'Number of units ordered for this line item'
+        tests:
+          - not_null
+
+      - name: item_line_total_usd
+        description: 'Line total = (unit_price * quantity) - discount_amount'
+        tests:
+          - not_null

@@ -1,0 +1,115 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: >
+      Customer dimension table. One row per customer_id.
+      Contains customer attributes and lifetime order metrics.
+      Grain: customer_id
+    columns:
+      - name: customer_id
+        description: 'Primary key — unique per customer'
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_email
+        description: 'Customer email — unique identifier'
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_full_name
+        description: 'Full name of the customer'
+        data_tests:
+          - not_null
+
+      - name: customer_country
+        description: 'Country of the customer'
+        data_tests:
+          - not_null
+
+      - name: total_orders
+        description: 'Total number of orders placed'
+        data_tests:
+          - not_null
+
+      - name: lifetime_revenue_usd
+        description: 'Total revenue from this customer in USD'
+        data_tests:
+          - not_null
+
+      - name: customer_segment
+        description: 'Customer value segment based on lifetime revenue'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['platinum', 'gold', 'silver', 'bronze']
+
+      - name: is_active_customer
+        description: 'TRUE if customer ordered in last 90 days'
+        data_tests:
+          - not_null
+
+  - name: fct_orders
+    description: >
+      Orders fact table. One row per order_id.
+      Contains all order metrics aggregated from line items.
+      Grain: order_id
+    columns:
+      - name: order_id
+        description: 'Primary key — unique per order'
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: 'Foreign key to dim_customers'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+
+      - name: order_date
+        description: 'Date the order was placed'
+        data_tests:
+          - not_null
+
+      - name: order_status
+        description: 'Current status of the order'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+
+      - name: order_total_usd
+        description: 'Total order value in USD'
+        data_tests:
+          - not_null
+
+      - name: total_gross_profit_usd
+        description: 'Gross profit for this order in USD'
+        data_tests:
+          - not_null
+
+      - name: order_value_tier
+        description: 'Order value bucket'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['high', 'medium', 'low']
+
+      - name: is_delivered
+        description: 'TRUE if order has been delivered'
+        data_tests:
+          - not_null
+
+      - name: is_active_order
+        description: 'FALSE only for cancelled orders'
+        data_tests:
+          - not_null

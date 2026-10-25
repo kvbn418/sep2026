@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: int_orders_enriched
+    description: >
+      Enriched orders model joining orders, customers,
+      order_items and products. One row per order_item_id.
+      Grain: order_item_id
+    columns:
+      - name: order_item_id
+        description: 'Primary key — unique per row'
+        tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: 'Foreign key — links to order'
+        tests:
+          - not_null
+
+      - name: customer_id
+        description: 'Foreign key — links to customer'
+        tests:
+          - not_null
+
+      - name: product_id
+        description: 'Foreign key — links to product'
+        tests:
+          - not_null
+
+      - name: order_date
+        description: 'Date the order was placed'
+        tests:
+          - not_null
+
+      - name: order_status
+        description: 'Current order status'
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+
+      - name: line_total_usd
+        description: 'Revenue for this line item in USD'
+        tests:
+          - not_null
+
+      - name: is_delivered
+        description: 'TRUE if order has been delivered'
+        tests:
+          - not_null
+
+      - name: is_active_order
+        description: 'FALSE only for cancelled orders'
+        tests:
+          - not_null
+
+      - name: order_value_tier
+        description: 'Order value bucket'
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['high', 'medium', 'low']

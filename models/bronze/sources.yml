@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════════════
+# sources.yml
+# Declares all raw source tables that dbt reads from RAW_DB
+# Use source('ecommerce', 'table_name') in Bronze models only
+# NEVER use source() in Silver or Gold — use ref() instead
+# ══════════════════════════════════════════════════════════════════════
+
+version: 2
+
+sources:
+  - name: ecommerce              # logical alias used in source() calls
+    description: >
+      Raw ecommerce data loaded by Fivetran into RAW_DB.ECOMMERCE_RAW.
+      dbt reads from here but never writes to this database.
+    database: RAW_DB             # Snowflake database — dbt never writes here
+    schema: ECOMMERCE_RAW        # Snowflake schema
+    
+    # Freshness checks — uncomment when Fivetran is running
+    # loaded_at_field: _fivetran_synced
+    # freshness:
+    #   warn_after:  {count: 12, period: hour}
+    #   error_after: {count: 24, period: hour}
+
+    tables:
+
+      - name: customers
+        description: >
+          One row per customer. Loaded by Fivetran from the source CRM.
+          Grain: customer_id. Contains PII — email, phone, name.
+
+      - name: products
+        description: >
+          One row per product SKU. Loaded by Fivetran from the product catalogue.
+          Grain: product_id. is_active=FALSE means product is discontinued.
+
+      - name: orders
+        description: >
+          One row per order. Loaded by Fivetran from the order management system.
+          Grain: order_id. Status lifecycle: PENDING → PROCESSING → SHIPPED → DELIVERED.
+          CANCELLED is a terminal state.
+
+      - name: order_items
+        description: >
+          One row per line item within an order. Loaded by Fivetran.
+          Grain: order_item_id. Multiple rows per order_id.
+          line_total = (unit_price * quantity) - discount_amount.
