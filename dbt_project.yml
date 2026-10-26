@@ -9,7 +9,7 @@ version: '1.0.0'
 config-version: 2
 
 # profile: ignored by dbt Cloud but required for dbt Core compatibility
-profile: 'sf_tableau_dbt'
+profile: 'default'
 
 # ── Folder paths ──────────────────────────────────────────────────────
 model-paths:    ["models"]
@@ -56,5 +56,5 @@ snapshots:
 
 # ── Seed configurations ───────────────────────────────────────────────
 seeds:
-  sf_tableau_dbt:
+  default:
     +schema: seeds
