@@ -50,7 +50,7 @@ models:
 
 # ── Snapshot configurations ───────────────────────────────────────────
 snapshots:
-  sf_tableau_dbt:
+  default:
     +target_schema: SNAPSHOTS
     +target_database: DEV_DB
 
