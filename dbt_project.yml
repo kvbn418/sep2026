@@ -4,7 +4,7 @@
 # CRITICAL: name must exactly match the models: key below
 # ══════════════════════════════════════════════════════════════════════
 
-name: 'sf_tableau_dbt'       # must match models: sf_tableau_dbt: key below
+name: 'default'       # must match models: sf_tableau_dbt: key below
 version: '1.0.0'
 config-version: 2
 
@@ -31,7 +31,7 @@ vars:
 # The + prefix applies config to the folder AND all subfolders
 # Without + dbt treats the key as a subfolder name (silent failure)
 models:
-  sf_tableau_dbt:          # must match 'name' above exactly
+  default:          # must match 'name' above exactly
 
     bronze:
       +materialized: view  # Bronze = VIEWs, zero storage cost, always live
