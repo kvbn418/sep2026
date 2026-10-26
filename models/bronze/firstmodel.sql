@@ -1,6 +1,6 @@
 {{
     config(
-        materialized='view',
+        materialized='table',
         secure=false,
         tags='unsecureview',
         query_tag='dbt_run',

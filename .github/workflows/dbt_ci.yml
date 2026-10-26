@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          my_new_project:
+          default:
             target: ci
             outputs:
               ci:
